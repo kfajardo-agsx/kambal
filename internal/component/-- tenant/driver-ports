@@ -1,0 +1,9 @@
+package tenant
+
+type Service interface {
+	Create(body TenantRequest) (*Tenant, error)
+	Get(externalReferenceID string) (*Tenant, error)
+	List(filter Filter) ([]Tenant, error)
+	Update(body TenantRequest) (*Tenant, error)
+	Delete(externalReferenceID string) error
+}

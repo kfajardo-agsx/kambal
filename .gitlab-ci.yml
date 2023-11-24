@@ -1,0 +1,4 @@
+include:
+  - project: 'talino-labs/asenso/cicd/ci-scripts'
+    file: 'gitlab-ci/main.yml'
+    ref: ${COMMON_CI_PACKAGE_VERSION}

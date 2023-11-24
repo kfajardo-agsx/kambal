@@ -1,0 +1,24 @@
+package tenant
+
+type Tenant struct {
+	ID                string  `json:"id"`
+	Name              string  `json:"name"`
+	ExternalReference string  `json:"external-reference"`
+	ParentTenantID    string  `json:"-"`
+	ParentTenant      *Tenant `json:"parent-tenant,omitempty"`
+}
+
+type TenantRequest struct {
+	ExternalReference string `json:"external-reference"`
+	Name              string `json:"name"`
+	ParentTenantID    string `json:"parent-tenant-id"`
+}
+
+type Filter struct {
+	PageNumber     int    `json:"page-number"`
+	PageLimit      int    `json:"page-limit"`
+	SortAscending  bool   `json:"sort-ascending"`
+	SortBy         string `json:"sort-by"`
+	Name           string `json:"name"`
+	ParentTenantID string `json:"parent-tenant-id"`
+}

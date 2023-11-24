@@ -1,0 +1,155 @@
+package account
+
+import (
+	"fmt"
+
+	"github.com/kfajardo-agsx/kambal.git/internal/component/common"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/tenant"
+)
+
+type AccountService struct {
+	repository    Repository
+	tenantService tenant.Service
+}
+
+// NewAccountService
+func NewAccountService(repo Repository, tenantService tenant.Service) Service {
+	return &AccountService{
+		repository:    repo,
+		tenantService: tenantService,
+	}
+}
+func (s *AccountService) Create(tenantExtRef string, request Account) (*Account, error) {
+	if s.ExistsExternalReference(request.ExternalReference) {
+		return nil, common.RepositoryErrorToAPIError(fmt.Errorf("already exists"))
+	}
+
+	ten, err := s.tenantService.Get(tenantExtRef)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	request.TenantID = ten.ID
+	created, err := s.repository.Create(request)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return created, nil
+}
+
+func (s *AccountService) CreateWithTenantID(tenantID string, accountExtRef string) (*Account, error) {
+	if s.ExistsExternalReference(accountExtRef) {
+		return nil, common.RepositoryErrorToAPIError(fmt.Errorf("already exists"))
+	}
+	request := Account{
+		ExternalReference: accountExtRef,
+		TenantID:          tenantID,
+		Name:              "",
+	}
+	created, err := s.repository.Create(request)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return created, nil
+}
+
+func (s *AccountService) Get(tenantExtRef string, externalRef string) (*Account, error) {
+	if !s.VerifyIDs(tenantExtRef, externalRef) {
+		return nil, common.RepositoryErrorToAPIError(fmt.Errorf("not allowed"))
+	}
+	found, err := s.repository.Get(externalRef)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return found, nil
+}
+
+func (s *AccountService) GetByExternalReference(accountExtRef string) (*Account, error) {
+	found, err := s.repository.Get(accountExtRef)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return found, nil
+}
+
+func (s *AccountService) ExistsExternalReference(externalRef string) bool {
+	return s.repository.ExistsExternalReference(externalRef)
+}
+
+func (s *AccountService) GetAccountID(externalRef string) (string, error) {
+	id, err := s.repository.GetAccountID(externalRef)
+	if err != nil {
+		return "", common.RepositoryErrorToAPIError(err)
+	}
+	return id, nil
+}
+
+func (s *AccountService) List(tenantExtRef string, filter Filter) ([]Account, error) {
+	ten, err := s.tenantService.Get(tenantExtRef)
+	if err != nil {
+		return nil, err
+	}
+
+	filter.TenantID = ten.ID
+
+	tenants, err := s.repository.List(filter)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return tenants, nil
+}
+
+func (s *AccountService) Update(tenantExtRef string, body Account) (*Account, error) {
+	// check if external reference exists
+	acct, err := s.repository.Get(body.ExternalReference)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+
+	if !s.VerifyIDs(tenantExtRef, body.ExternalReference) {
+		return nil, common.RepositoryErrorToAPIError(fmt.Errorf("not allowed"))
+	}
+
+	ten, err := s.tenantService.Get(tenantExtRef)
+	if err != nil {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+
+	body.ID = acct.ID
+	body.TenantID = ten.ID
+
+	updated, err := s.repository.Update(body)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return updated, nil
+}
+
+func (s *AccountService) Delete(tenantExtRef string, externalReferenceID string) error {
+	// TODO: Delete children entities
+	////////////////////////////////
+
+	if !s.VerifyIDs(tenantExtRef, externalReferenceID) {
+		return common.RepositoryErrorToAPIError(fmt.Errorf("not allowed"))
+	}
+
+	err := s.repository.Delete(externalReferenceID)
+	if err != nil {
+		return common.RepositoryErrorToAPIError(err)
+	}
+	return nil
+}
+
+func (s *AccountService) VerifyIDs(tenantExtRef string, externalRef string) bool {
+	acct, err := s.repository.Get(externalRef)
+	if err != nil {
+		return false
+	}
+
+	// check if the account tenant id matches
+	ten, err := s.tenantService.Get(tenantExtRef)
+	if err != nil {
+		return false
+	}
+
+	return acct.TenantID == ten.ID
+}

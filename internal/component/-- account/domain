@@ -1,0 +1,17 @@
+package account
+
+type Account struct {
+	ID                string `json:"id"`
+	ExternalReference string `json:"external-reference"`
+	TenantID          string `json:"tenant-id"`
+	Name              string `json:"name"`
+}
+
+type Filter struct {
+	PageNumber    int    `json:"page-number"`
+	PageLimit     int    `json:"page-limit"`
+	SortAscending bool   `json:"sort-ascending"`
+	SortBy        string `json:"sort-by"`
+	Name          string `json:"name"`
+	TenantID      string `json:"tenant-id"`
+}

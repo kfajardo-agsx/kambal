@@ -1,0 +1,80 @@
+package tenant
+
+import (
+	"fmt"
+
+	"github.com/jinzhu/copier"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/common"
+)
+
+type TenantService struct {
+	repository Repository
+}
+
+func NewTenantService(repo Repository) Service {
+	return &TenantService{
+		repository: repo,
+	}
+}
+
+func (s *TenantService) Create(body TenantRequest) (*Tenant, error) {
+	// check if external reference already in used
+	if _, err := s.repository.Get(body.ExternalReference); nil == err {
+		return nil, common.RepositoryErrorToAPIError(fmt.Errorf("tenant with external reference %s already exists.", body.ExternalReference))
+	}
+
+	data := Tenant{}
+	if err := copier.Copy(&data, &body); nil != err {
+		return nil, err
+	}
+
+	created, err := s.repository.Create(data)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return created, nil
+}
+
+func (s *TenantService) Get(externalReferenceID string) (*Tenant, error) {
+	tenant, err := s.repository.Get(externalReferenceID)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return tenant, nil
+}
+
+func (s *TenantService) List(filter Filter) ([]Tenant, error) {
+	tenants, err := s.repository.List(filter)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return tenants, nil
+}
+
+func (s *TenantService) Update(body TenantRequest) (*Tenant, error) {
+	// check if external reference exists
+	tenantByExtRef, err := s.repository.Get(body.ExternalReference)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+
+	tenantByExtRef.Name = body.Name
+	tenantByExtRef.ParentTenantID = body.ParentTenantID
+
+	updated, err := s.repository.Update(*tenantByExtRef)
+	if nil != err {
+		return nil, common.RepositoryErrorToAPIError(err)
+	}
+	return updated, nil
+}
+
+func (s *TenantService) Delete(externalReferenceID string) error {
+	// TODO: Delete children entities
+	////////////////////////////////
+
+	err := s.repository.Delete(externalReferenceID)
+	if err != nil {
+		return common.RepositoryErrorToAPIError(err)
+	}
+	return nil
+}

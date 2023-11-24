@@ -1,0 +1,38 @@
+package account
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/amihan/common/libraries/go/responses.git" // html responses librarys
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/common"
+)
+
+func create(accountSvc account.Service) http.HandlerFunc {
+	log.Debug("handler registered: accounts::create")
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		tenantExtRef := mux.Vars(req)["external_reference"]
+
+		body := req.Body
+		defer body.Close()
+
+		var request account.Account
+		if err := json.NewDecoder(body).Decode(&request); err != nil {
+			log.WithError(err).Error("unable to read create account request")
+			responses.WriteUnreadableRequestError(res)
+			return
+		}
+		created, err := accountSvc.Create(tenantExtRef, request)
+		if err != nil {
+			log.WithError(err).Error("unable to add new account")
+			common.WriteFileServiceError(res, err)
+			return
+		}
+
+		responses.WriteOKWithEntity(res, created)
+	}
+}

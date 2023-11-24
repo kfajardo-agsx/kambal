@@ -1,0 +1,42 @@
+package account
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/amihan/common/libraries/go/responses.git"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/common"
+)
+
+func update(accountSvc account.Service) http.HandlerFunc {
+	log.Debug("handler registered: accounts::update")
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		tenantExtRef := mux.Vars(req)["external_reference"]
+		accountExtRef := mux.Vars(req)["account_external_reference"]
+
+		body := req.Body
+		defer body.Close()
+
+		var request account.Account
+		if err := json.NewDecoder(body).Decode(&request); err != nil {
+			log.WithError(err).Error("unable to read update account request")
+			responses.WriteUnreadableRequestError(res)
+			return
+		}
+
+		request.ExternalReference = accountExtRef
+
+		updated, err := accountSvc.Update(tenantExtRef, request)
+		if err != nil {
+			log.WithError(err).Error("unable to update account")
+			common.WriteFileServiceError(res, err)
+			return
+		}
+
+		responses.WriteOKWithEntity(res, updated)
+	}
+}

@@ -7,11 +7,16 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
-	middleware "gitlab.com/amihan/common/libraries/go/jwt-auth.git"
-	"gitlab.com/amihan/common/libraries/go/middlewares.git"
-	"gitlab.com/amihan/common/libraries/go/responses.git"
-	application "gitlab.com/amihan/core/base.git/internal/entrypoint/api/rest/base"
-	"gitlab.com/amihan/core/base.git/internal/infrastructure/auth"
+	// apiKeyAuth "gitlab.com/amihan/common/libraries/go/api-key-auth.git"
+	// middleware "gitlab.com/amihan/common/libraries/go/jwt-auth.git"
+	// "gitlab.com/amihan/common/libraries/go/middlewares.git"
+	// "gitlab.com/amihan/common/libraries/go/responses.git"
+	// "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/account"
+	// "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/dropbox"
+	// "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/file"
+	// "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/store"
+	// "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/store_provider"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/user"
 	"gopkg.in/yaml.v2"
 )
 
@@ -38,17 +43,31 @@ type (
 	}
 
 	API struct {
-		config                *Config
-		router                *mux.Router
-		applicationController *application.Controller
+		config                  *Config
+		router                  *mux.Router
+		userController 			*user.Controller
+		// tenantController        *tenant.Controller
+		// storeProviderController *store_provider.Controller
+		// accountController       *account.Controller
+		// storeController         *store.Controller
+		// fileController          *file.Controller
+		// dropboxController       *dropbox.Controller
 	}
 )
 
-func NewRestAPI(config *Config, router *mux.Router, applicationController *application.Controller) *API {
+func NewRestAPI(config *Config, router *mux.Router, userController *user.Controller) *API {
+	// tenantController *tenant.Controller, storeProviderController *store_provider.Controller,
+	// accountController *account.Controller, storeController *store.Controller, fileController *file.Controller, dropboxController *dropbox.Controller) *API {
 	return &API{
-		config:                config,
-		router:                router,
-		applicationController: applicationController,
+		config:                  config,
+		router:                  router,
+		// tenantController:        tenantController,
+		// storeProviderController: storeProviderController,
+		// accountController:       accountController,
+		// storeController:         storeController,
+		// fileController:          fileController,
+		// dropboxController:       dropboxController,
+		userController: userController,
 	}
 }
 
@@ -105,19 +124,25 @@ func (api *API) addMiddlewares() {
 
 func (api *API) registerHandlers() {
 	log.Infof("Register Handlers")
-	jwtMiddleware := &middleware.JWT{
-		PubKeyURL: api.config.Auth.JWTPubKeyURL,
-	}
+	// jwtMiddleware := &middleware.JWT{
+	// 	PubKeyURL: api.config.Auth.JWTPubKeyURL,
+	// }
 
-	apiKeyAuthMiddleware := &auth.APIKeyAuthorize{
-		APIKey:      api.config.Auth.APIKey,
-		APIKeyParam: api.config.Auth.APIKeyParamName,
-	}
+	// apiKeyAuthMiddleware := &apiKeyAuth.APIKeyAuthorize{
+	// 	APIKey:          api.config.Auth.APIKey,
+	// 	APIKeyParamName: api.config.Auth.APIKeyParamName,
+	// }
 
-	err := yaml.Unmarshal([]byte(api.config.Auth.RBAC), &jwtMiddleware.RBAC)
-	if err != nil {
-		log.Errorf("Error decoding RBAC: %v", err.Error())
-	}
+	// err := yaml.Unmarshal([]byte(api.config.Auth.RBAC), &jwtMiddleware.RBAC)
+	// if err != nil {
+	// 	log.Errorf("Error decoding RBAC: %v", err.Error())
+	// }
+	api.userController.Register(api.router, nil, nil)
 
-	api.applicationController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.tenantController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.storeProviderController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.accountController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.storeController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.fileController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
+	// api.dropboxController.Register(api.router, apiKeyAuthMiddleware, jwtMiddleware)
 }

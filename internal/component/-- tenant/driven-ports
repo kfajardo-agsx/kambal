@@ -1,0 +1,9 @@
+package tenant
+
+type Repository interface {
+	Create(body Tenant) (*Tenant, error)
+	Get(externalReferenceID string) (*Tenant, error)
+	List(filter Filter) ([]Tenant, error)
+	Update(body Tenant) (*Tenant, error)
+	Delete(externalReferenceID string) error
+}

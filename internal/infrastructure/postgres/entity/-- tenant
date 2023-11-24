@@ -1,0 +1,15 @@
+// package entity
+
+// type Tenant struct {
+// 	Base
+// 	Name              string `gorm:"name"`
+// 	ExternalReference string `gorm:"external_reference"`
+// 	ParentTenantID    string `gorm:"parent_tenant_id"`
+
+// 	Accounts []Account `gorm:"foreignKey:TenantID;association_autoupdate:false;save_associations:false;;association_autocreate:false" json:"accounts"`
+// 	Stores   []Store   `gorm:"foreignKey:TenantID;association_autoupdate:false;save_associations:false;;association_autocreate:false" json:"stores"`
+// }
+
+// func (repoModel *Tenant) GetID() interface{} {
+// 	return repoModel.ID
+// }

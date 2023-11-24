@@ -1,11 +1,12 @@
-HARBOR_REGISTRY=harbor.amihan.net
-APP=product-service
-PROJECT=bdo/commons
-VERSION=latest
-BUILD_IMAGE=${HARBOR_REGISTRY}/${PROJECT}/${APP}:${VERSION}
-CHART_REPO=https://${HARBOR_REGISTRY}/chartrepo/bdo
-CHARTDIR=bdo
-CHART_NAME=product-service
+APP=account-service
+REGISTRY=harbor.amihan.net
+CONTAINER_REPO = $(CI_PROJECT_NAMESPACE)/$(CI_PROJECT_NAME)
+PROJECT=common
+IMAGE_TAG = $(CI_COMMIT_REF_NAME)
+TAG = $(CONTAINER_REPO)/$(PROJECT):$(IMAGE_TAG)
+PUSH_TAG = $(REGISTRY)/$(CONTAINER_REPO)/$(PROJECT):$(IMAGE_TAG)
+REGISTRY_USER = $(HARBOR_AMIHAN_ROBOT_USER)
+REGISTRY_PASS = $(HARBOR_AMIHAN_ROBOT_PASS)
 
 all: clean lint build test package
 
@@ -28,7 +29,7 @@ deps:
 	go mod download
 	@echo 'Vendorizing dependencies...'
 	go mod download
-	@echo 'Done.'	
+	@echo 'Done.'
 
 gen:
 	@echo '========================================'
@@ -79,17 +80,35 @@ run: build
 	@build/bin/${APP} serve ${ARGS}
 	@echo 'Done.'
 
+run-test: 
+	@echo '========================================'
+	@echo ' Running tests'
+	@echo '========================================'
+	@go test ./... --coverprofile=coverage.out ./...
+	@echo 'Done.'
+
+run-test-all: 
+	@echo '========================================'
+	@echo ' Running tests'
+	@echo '========================================'
+	@go test ./... -v --coverpkg=./... --coverprofile=coverage-all.out ./...
+	@echo '========================================'
+	@echo ' Test Coverage Summary'
+	@echo '========================================'
+	@go tool cover -func=coverage-all.out
+	@echo 'Done.'
+
 pull-image:
 	@echo '========================================'
 	@echo ' Getting latest image'
 	@echo '========================================'
-	@docker pull ${HARBOR_REGISTRY}/${PROJECT}/${APP}:${VERSION} || true
+	@docker pull ${REGISTRY}/${PROJECT}/${APP}:${IMAGE_TAG} || true
 
 package-image:
 	@echo '========================================'
 	@echo ' Packaging docker image'
 	@echo '========================================'
-	docker build --network host -t ${BUILD_IMAGE} .
+	docker build --network host -t ${PUSH_TAG} .
 	@echo 'Done.'
 
 package-chart:
@@ -100,16 +119,16 @@ package-chart:
 	@helm dep update helm/audit-service
 	@cp -r helm/${APP} build/chart
 	@cp config/rbac.yaml build/chart/${APP}/files/
-	@helm package  --app-version ${VERSION} -u -d build/chart build/chart/${APP}
+	@helm package  --app-version ${IMAGE_TAG} -u -d build/chart build/chart/${APP}
 	@echo 'Done.'
 
 package: package-image
-	
+
 publish-image: package-image
 	@echo '========================================'
 	@echo ' Publishing image'
 	@echo '========================================'
-	docker push ${BUILD_IMAGE}
+	docker push ${PUSH_TAG}
 	@echo 'Done.'
 
 publish-chart: package-chart
@@ -124,47 +143,45 @@ publish: publish-image publish-chart
 harbor-login:
 	@echo '========================================'
 	@echo ' Harbor Login'
-	@echo '${HARBOR_REGISTRY}'
+	@echo '${REGISTRY}'
 	@echo '========================================'
-	@echo ${HARBOR_PASS} | docker login ${HARBOR_REGISTRY} --username ${HARBOR_USER} --password-stdin
-	@echo 'Done.'
-
-devops-setup-helm: 
-	@echo '========================================'
-	@echo ' Setting up Helm'
-	@echo '========================================'
-	helm init --client-only
-	helm repo add msme ${CHART_REPO} --username ${HARBOR_USER} --password ${HARBOR_PASS} 
-	helm repo add codecentric https://codecentric.github.io/helm-charts
-	helm repo update
-	@echo 'Done.'
-
-devops-setup-cluster: 
-	kubectl config set-cluster ${CLUSTER_NAME} --server="${CLUSTER_API_URL}"
-	kubectl config set clusters.${CLUSTER_NAME}.certificate-authority-data ${CLUSTER_CA}
-	kubectl config set-credentials ${CLUSTER_USER} --token="${CLUSTER_USER_TOKEN}"
-	kubectl config set-context ${CLUSTER_CONTEXT} --cluster=${CLUSTER_NAME} --user=${CLUSTER_USER}
-	kubectl config use-context ${CLUSTER_CONTEXT}
-	kubectl config set-context ${CLUSTER_CONTEXT} --namespace=${CLUSTER_NAMESPACE}
-	kubectl config view
-
-devops-deploy-chart:
-	@echo '========================================'
-	@echo ' Deploying application'
-	@echo '========================================'
-	helm upgrade ${CHART_NAME} --install \
-		--namespace ${NAMESPACE} \
-		--set image.tag=${VERSION} \
-		--set registries[0].url=${HARBOR_REGISTRY} \
-		--set registries[0].username=${HARBOR_USER} \
-		--set registries[0].password=${HARBOR_PASS} \
-		--set extraLabels.git_hash=${CI_COMMIT_SHORT_SHA} \
-		--values ${VALUES_FILE} msme/product-service
+	@echo ${HARBOR_PASS} | docker login ${REGISTRY} --username ${HARBOR_USER} --password-stdin
 	@echo 'Done.'
 
 test-quality:
 	@echo '========================================'
 	@echo ' Running tests: Lint (golangci-lint)'
 	@echo '========================================'
-	@docker run -it  -v $(PWD):/app --rm golangci/golangci-lint:v1.23.6 bash -c "cd /app && /usr/bin/golangci-lint --verbose -c config/.golangci.yml run"
+	@docker run -it  -v $(PWD):/app --rm golangci/golangci-lint:v1.40 bash -c "cd /app && /usr/bin/golangci-lint --verbose --timeout=24h -c lint/.golangci.yml run"
 	@echo NO ERRORS FOUND.
+
+# devops
+devops-registry-login:
+	@echo ${REGISTRY_PASS} | docker login ${REGISTRY} --username ${REGISTRY_USER} --password-stdin
+	@echo ${DOCKER_PASS} | docker login --username ${DOCKER_USER} --password-stdin
+
+devops-package-image:
+	@echo '========================================'
+	@echo ' Packaging docker image'
+	@echo '========================================'
+	docker build --network host -t ${PUSH_TAG} .
+	@echo 'Done.'
+
+devops-publish-image:
+	@echo '========================================'
+	@echo ' Publishing image'
+	@echo '========================================'
+	docker push ${PUSH_TAG}
+	@echo 'Done.'
+
+devops-deploy-chart:
+	helm upgrade ${PROJECT}-${APP}-${ENV} --install \
+		--namespace ${NAMESPACE} \
+		--set image.repository=$(REGISTRY)/$(CONTAINER_REPO)/$(PROJECT) \
+		--set image.tag=${IMAGE_TAG} \
+		--set registries[0].url=${REGISTRY} \
+		--set registries[0].username=${REGISTRY_USER} \
+		--set registries[0].password=${REGISTRY_PASS} \
+		--set extraLabels.git_hash=commit-${CI_COMMIT_SHORT_SHA} \
+		--values ${VALUES_FILE} helm/application-service
+

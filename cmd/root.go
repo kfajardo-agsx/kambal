@@ -13,18 +13,17 @@ var (
 	configFile string
 
 	root = &cobra.Command{
-		Use:   "product-service",
-		Short: "create and get loans",
+		Use:   "file-service",
+		Short: "File Service - save and get files",
 	}
 )
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	root.PersistentFlags().StringVar(&configFile, "config", "", "config file (default is ${HOME}/.product-service.yaml")
+	root.PersistentFlags().StringVar(&configFile, "config", "", "config file (default is ${HOME}/.file-service.yaml")
 }
 
 func initConfig() {
-
 	if configFile != "" {
 		// load config file if provided via args
 		viper.SetConfigFile(configFile)
@@ -36,11 +35,11 @@ func initConfig() {
 			os.Exit(1)
 		}
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".product-service.yaml")
+		viper.SetConfigName(".file-service.yaml")
 	}
 
 	// enable environment vars
-	viper.SetEnvPrefix("APPLICATION_SERVICE")
+	viper.SetEnvPrefix("FILE_SERVICE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 

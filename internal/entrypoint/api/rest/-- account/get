@@ -1,0 +1,29 @@
+package account
+
+import (
+	"net/http"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/amihan/common/libraries/go/responses.git"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/common"
+)
+
+func get(accountSvc account.Service) http.HandlerFunc {
+	log.Debug("handler registered: accounts::get")
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		tenantExtRef := mux.Vars(req)["external_reference"]
+		accountExtRef := mux.Vars(req)["account_external_reference"]
+
+		result, err := accountSvc.Get(tenantExtRef, accountExtRef)
+		if err != nil {
+			log.WithError(err).Error("unable to get account")
+			common.WriteFileServiceError(res, err)
+			return
+		}
+
+		responses.WriteOKWithEntity(res, result)
+	}
+}

@@ -1,0 +1,95 @@
+package repository
+
+import (
+	"github.com/jinzhu/copier"
+	"github.com/jinzhu/gorm" // gorm library for database
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres/entity"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres/repository/common"
+)
+
+type AccountRepository struct {
+	*common.GormRepository
+}
+
+func NewAccountRepository(db *gorm.DB) account.Repository {
+	return &AccountRepository{
+		&common.GormRepository{
+			db.Debug(),
+		},
+	}
+}
+
+func (repo *AccountRepository) Create(request account.Account) (*account.Account, error) {
+	_, err := repo.SaveEntity(&entity.Account{}, request)
+	if nil != err {
+		return nil, err
+	}
+
+	return repo.Get(request.ExternalReference)
+}
+
+func (repo *AccountRepository) Get(externalRef string) (*account.Account, error) {
+	var dbEntity entity.Account
+	err := repo.Table("accounts").Where("external_reference = ?", externalRef).Find(&dbEntity).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbEntity.Transform(), nil
+}
+
+func (repo *AccountRepository) GetByID(id string) (*account.Account, error) {
+	var dbEntity entity.Account
+	err := repo.Table("accounts").Where("id = ?", id).Find(&dbEntity).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbEntity.Transform(), nil
+}
+
+func (repo *AccountRepository) ExistsExternalReference(externalRef string) bool {
+	var count int
+	repo.Table("accounts").Where("external_reference = ?", externalRef).Count(&count)
+	return count > 0
+}
+
+func (repo *AccountRepository) List(filter account.Filter) ([]account.Account, error) {
+	var dbEntities []entity.Account
+	chain := repo.Table("accounts")
+	chain = common.AddLimit(chain, filter.PageLimit)
+	chain = common.AddOffset(chain, filter.PageLimit, filter.PageNumber)
+	chain = common.AddOrdering(chain, filter.SortBy, filter.SortAscending)
+
+	if filter.Name != "" {
+		chain = common.AddLikeFilter(chain, "name", filter.Name)
+	}
+
+	if filter.TenantID != "" {
+		chain = common.AddEqualFilter(chain, "tenant_id", filter.TenantID)
+	}
+
+	err := chain.Find(&dbEntities).Error
+	if nil != err {
+		return nil, err
+	}
+	var returnEntities []account.Account
+	for _, entry := range dbEntities {
+		acct := &account.Account{}
+		if err := copier.Copy(&acct, &entry); nil != err {
+			return nil, err
+		}
+		returnEntities = append(returnEntities, *acct)
+	}
+
+	return returnEntities, nil
+}
+
+func (repo *AccountRepository) Update(body account.Account) (*account.Account, error) {
+	return repo.Create(body)
+}
+
+func (repo *AccountRepository) Delete(externalReferenceID string) error {
+	return repo.DeleteEntity(entity.Account{}, "external_reference = ?", externalReferenceID)
+}

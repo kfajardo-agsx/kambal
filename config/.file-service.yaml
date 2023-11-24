@@ -1,0 +1,36 @@
+api:
+  rest:
+    host: '0.0.0.0'
+    port: 8080
+    spec: ./openapi.yaml
+    cors:
+      allowedOrigins:
+        - '*'
+      allowedHeaders:
+        - Content-Type
+        - Sec-Fetch-Dest
+        - Referer
+        - Accept
+        - User-Agent
+        - RA-API-KEY
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+    auth:
+      jwtPubKeyUrl:
+      rbacFile: config/rbac.yaml
+      apiKeyParamName: API-KEY
+    version: 1
+
+log:
+  debug: true
+
+s3:
+  endpoint: 
+  secure: false
+  bucket: 
+  location: 
+
+secrets:
+  file: 

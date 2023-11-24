@@ -18,7 +18,6 @@ type (
 
 	Migration struct {
 		datasource *Datasource
-		appsource  string
 	}
 )
 

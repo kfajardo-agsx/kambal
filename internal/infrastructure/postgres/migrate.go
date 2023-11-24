@@ -12,16 +12,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type migrationLogger struct{}
+
+func (logger migrationLogger) Printf(format string, v ...interface{}) {
+	log.Infof(format, v...)
+}
+
+func (logger migrationLogger) Verbose() bool {
+	return false
+}
+
 // NewMigration ...
 func NewMigration(datasource *Datasource) *Migration {
-	return &Migration{
-		datasource: datasource,
-	}
+	return &Migration{datasource}
 }
 
 // Run ...
 func (m *Migration) Run() error {
-	// if location is not db, do not execute
 	source := m.datasource.AsFileSource()
 	datasource := m.datasource.AsDatasourceString()
 	log.
@@ -33,6 +40,7 @@ func (m *Migration) Run() error {
 		log.WithError(err).Error("Unable to create migrations")
 		return err
 	}
+	migrations.Log = migrationLogger{}
 	if err := migrations.Up(); err != nil {
 		switch err {
 		case migrate.ErrNilVersion:

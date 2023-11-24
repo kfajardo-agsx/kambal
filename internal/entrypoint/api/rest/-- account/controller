@@ -1,0 +1,49 @@
+package account
+
+import (
+	"net/http"
+
+	"github.com/gorilla/mux" // router/dispatcher
+	apiKeyAuth "gitlab.com/amihan/common/libraries/go/api-key-auth.git"
+	middleware "gitlab.com/amihan/common/libraries/go/jwt-auth.git" // claims
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+)
+
+type Controller struct {
+	accountService account.Service
+}
+
+func NewController(accountService account.Service) *Controller {
+	return &Controller{
+		accountService: accountService,
+	}
+}
+
+func (c *Controller) Register(router *mux.Router, apiKeyAuthMiddleware *apiKeyAuth.APIKeyAuthorize, jwtMiddleware *middleware.JWT) {
+	application := router.PathPrefix("/tenants/{external_reference}/accounts").Subrouter()
+
+	application.
+		Methods(http.MethodPost, http.MethodOptions).
+		Path("").
+		HandlerFunc(create(c.accountService))
+
+	application.
+		Methods(http.MethodGet, http.MethodOptions).
+		Path("").
+		HandlerFunc(list(c.accountService))
+
+	application.
+		Methods(http.MethodGet, http.MethodOptions).
+		Path("/{account_external_reference}").
+		HandlerFunc(get(c.accountService))
+
+	application.
+		Methods(http.MethodPut, http.MethodOptions).
+		Path("/{account_external_reference}").
+		HandlerFunc(update(c.accountService))
+
+	application.
+		Methods(http.MethodDelete, http.MethodOptions).
+		Path("/{account_external_reference}").
+		HandlerFunc(delete(c.accountService))
+}

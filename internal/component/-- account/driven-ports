@@ -1,0 +1,11 @@
+package account
+
+type Repository interface {
+	Create(request Account) (*Account, error)
+	Get(externalRef string) (*Account, error)
+	ExistsExternalReference(externalRef string) bool
+	GetAccountID(externalRef string) (string, error)
+	List(filter Filter) ([]Account, error)
+	Update(body Account) (*Account, error)
+	Delete(externalReferenceID string) error
+}

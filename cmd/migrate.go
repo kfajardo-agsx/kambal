@@ -7,7 +7,7 @@ import (
 
 var migrate = &cobra.Command{
 	Use:   "migrate",
-	Short: "run the db migrations for product-service",
+	Short: "run the db migrations",
 	Run:   runMigrate,
 }
 

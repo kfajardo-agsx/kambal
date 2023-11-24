@@ -1,0 +1,25 @@
+// package entity
+
+// import "github.com/kfajardo-agsx/kambal.git/internal/component/account"
+
+// type Account struct {
+// 	Base
+// 	TenantID          string `gorm:"tenant_id"`
+// 	ExternalReference string `gorm:"external_reference"`
+// 	Name              string `gorm:"name"`
+
+// 	Files []File `gorm:"foreignKey:CreatedBy;association_autoupdate:false;save_associations:false;;association_autocreate:false" json:"files"`
+// }
+
+// func (repoModel *Account) GetID() interface{} {
+// 	return repoModel.ID
+// }
+
+// func (repoModel *Account) Transform() *account.Account {
+// 	return &account.Account{
+// 		ID:                repoModel.ID,
+// 		TenantID:          repoModel.TenantID,
+// 		ExternalReference: repoModel.ExternalReference,
+// 		Name:              repoModel.Name,
+// 	}
+// }

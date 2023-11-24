@@ -1,0 +1,15 @@
+package account
+
+type Service interface {
+	Create(tenantExtRef string, request Account) (*Account, error)
+	CreateWithTenantID(tenantID string, accountExtRef string) (*Account, error)
+	Get(tenantExtRef string, accountExtRef string) (*Account, error)
+	GetByExternalReference(accountExtRef string) (*Account, error)
+	ExistsExternalReference(accountExtRef string) bool
+	GetAccountID(accountExtRef string) (string, error)
+	List(tenantExtRef string, filter Filter) ([]Account, error)
+	Update(tenantExtRef string, body Account) (*Account, error)
+	Delete(tenantExtRef string, accountExtRef string) error
+
+	VerifyIDs(tenantExtRef string, accountExtRef string) bool
+}

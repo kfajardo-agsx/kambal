@@ -1,0 +1,115 @@
+package repository
+
+import (
+	"fmt"
+
+	"github.com/jinzhu/copier"
+	"github.com/jinzhu/gorm"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/tenant"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres/entity"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres/repository/common"
+)
+
+type TenantRepository struct {
+	*common.GormRepository
+}
+
+func NewTenantRepository(db *gorm.DB) tenant.Repository {
+	return &TenantRepository{
+		&common.GormRepository{
+			db.Debug(),
+		},
+	}
+}
+
+func (repo *TenantRepository) Create(body tenant.Tenant) (*tenant.Tenant, error) {
+	// check if parent tenant id exists
+	if "" != body.ParentTenantID {
+		err := repo.FindEntity(&entity.Tenant{}, &tenant.Tenant{}, "id = ?", body.ParentTenantID)
+		if nil != err {
+			return nil, fmt.Errorf("Parent tenant id %s does not exist", body.ParentTenantID)
+		}
+	}
+
+	_, err := repo.SaveEntity(&entity.Tenant{}, body)
+	if nil != err {
+		return nil, err
+	}
+
+	return repo.Get(body.ExternalReference)
+}
+
+func (repo *TenantRepository) Get(externalReferenceID string) (*tenant.Tenant, error) {
+	data := &tenant.Tenant{}
+	err := repo.FindEntity(&entity.Tenant{}, data, "external_reference = ?", externalReferenceID)
+	if nil != err {
+		return nil, err
+	}
+
+	data.ParentTenant = repo.getParentEntity(data)
+
+	return data, nil
+}
+
+func (repo *TenantRepository) GetByID(id string) (*tenant.Tenant, error) {
+	data := &tenant.Tenant{}
+	err := repo.FindEntity(&entity.Tenant{}, data, "id = ?", id)
+	if nil != err {
+		return nil, err
+	}
+
+	data.ParentTenant = repo.getParentEntity(data)
+
+	return data, nil
+}
+
+func (repo *TenantRepository) List(filter tenant.Filter) ([]tenant.Tenant, error) {
+	var dbEntities []entity.Tenant
+	chain := repo.Table("tenants")
+	chain = common.AddLimit(chain, filter.PageLimit)
+	chain = common.AddOffset(chain, filter.PageLimit, filter.PageNumber)
+	chain = common.AddOrdering(chain, filter.SortBy, filter.SortAscending)
+
+	if filter.ParentTenantID != "" {
+		chain = common.AddEqualFilter(chain, "parent_tenant_id", filter.ParentTenantID)
+	}
+	if filter.Name != "" {
+		chain = common.AddLikeFilter(chain, "name", filter.Name)
+	}
+
+	err := chain.Find(&dbEntities).Error
+	if nil != err {
+		return nil, err
+	}
+	var returnEntities []tenant.Tenant
+	for _, entry := range dbEntities {
+		tenant := &tenant.Tenant{}
+		if err := copier.Copy(&tenant, &entry); nil != err {
+			return nil, err
+		}
+
+		tenant.ParentTenant = repo.getParentEntity(tenant)
+		returnEntities = append(returnEntities, *tenant)
+	}
+
+	return returnEntities, nil
+}
+
+func (repo *TenantRepository) getParentEntity(tenantEntity *tenant.Tenant) *tenant.Tenant {
+	// get parent tenant
+	if "" != tenantEntity.ParentTenantID {
+		parentTenant, err := repo.GetByID(tenantEntity.ParentTenantID)
+		if nil == err {
+			return parentTenant
+		}
+	}
+	return nil
+}
+
+func (repo *TenantRepository) Update(body tenant.Tenant) (*tenant.Tenant, error) {
+	return repo.Create(body)
+}
+
+func (repo *TenantRepository) Delete(externalReferenceID string) error {
+	return repo.DeleteEntity(entity.Tenant{}, "external_reference = ?", externalReferenceID)
+}

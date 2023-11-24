@@ -1,6 +1,6 @@
 package main
 
-import "gitlab.com/amihan/core/base.git/cmd"
+import "github.com/kfajardo-agsx/kambal.git/cmd"
 
 var version = "dev"
 

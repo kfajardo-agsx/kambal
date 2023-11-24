@@ -1,0 +1,29 @@
+package account
+
+import (
+	"net/http"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/amihan/common/libraries/go/responses.git"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/common"
+)
+
+func delete(accountSvc account.Service) http.HandlerFunc {
+	log.Debug("handler registered: accounts::delete")
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		tenantExtRef := mux.Vars(req)["external_reference"]
+		accountExtRef := mux.Vars(req)["account_external_reference"]
+
+		err := accountSvc.Delete(tenantExtRef, accountExtRef)
+		if err != nil {
+			log.WithError(err).Error("unable to delete account")
+			common.WriteFileServiceError(res, err)
+			return
+		}
+
+		responses.WriteOK(res)
+	}
+}

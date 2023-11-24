@@ -1,0 +1,58 @@
+package account
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
+	"gitlab.com/amihan/common/libraries/go/responses.git"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/common"
+)
+
+func list(accountSvc account.Service) http.HandlerFunc {
+	log.Debug("handler registered: accounts::list")
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		tenantExtRef := mux.Vars(req)["external_reference"]
+
+		pageLimitStr := req.URL.Query().Get("page-limit")
+		pageNumberStr := req.URL.Query().Get("page-number")
+		sortAscendingStr := req.URL.Query().Get("sort-ascending")
+
+		pageLimit, err := strconv.Atoi(pageLimitStr)
+		if err != nil {
+			// setting default limit to 100
+			pageLimit = 100
+		}
+		pageNumber, err := strconv.Atoi(pageNumberStr)
+		if err != nil {
+			// default page 1
+			pageNumber = 1
+		}
+
+		sortAscending, err := strconv.ParseBool(sortAscendingStr)
+		if err != nil {
+			// default is always descending
+			sortAscending = false
+		}
+
+		filters := account.Filter{
+			PageNumber:    pageNumber,
+			PageLimit:     pageLimit,
+			SortAscending: sortAscending,
+			SortBy:        req.URL.Query().Get("sort-by"),
+			Name:          req.URL.Query().Get("name"),
+		}
+
+		list, err := accountSvc.List(tenantExtRef, filters)
+		if err != nil {
+			log.WithError(err).Error("unable to list accounts")
+			common.WriteFileServiceError(res, err)
+			return
+		}
+
+		responses.WriteOKWithEntity(res, list)
+	}
+}

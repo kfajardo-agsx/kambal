@@ -1,5 +1,4 @@
-//go:build wireinject
-// +build wireinject
+//+build wireinject
 
 package cmd
 
@@ -7,15 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-
-	// load postgres driver
-	_ "github.com/lib/pq"
-	"gitlab.com/amihan/core/base.git/internal/component/user"
-	"gitlab.com/amihan/core/base.git/internal/entrypoint/api/rest"
-	"gitlab.com/amihan/core/base.git/internal/infrastructure/postgres"
-	"gitlab.com/amihan/core/base.git/internal/infrastructure/postgres/repository"
-
-	handler "gitlab.com/amihan/core/base.git/internal/entrypoint/api/rest/base"
+	"strconv"
 
 	"github.com/google/wire"
 	"github.com/gorilla/mux"
@@ -23,28 +14,88 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+
+	// load postgres driver
+	_ "github.com/lib/pq"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/account"
+
+	// services
+	dropboxSvc "github.com/kfajardo-agsx/kambal.git/internal/component/dropbox"
+	fileSvc "github.com/kfajardo-agsx/kambal.git/internal/component/file"
+	minioSvc "github.com/kfajardo-agsx/kambal.git/internal/component/minio"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/store"
+	"github.com/kfajardo-agsx/kambal.git/internal/component/store_provider"
+	tenantSvc "github.com/kfajardo-agsx/kambal.git/internal/component/tenant"
+
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/dropbox"
+	minioApp "github.com/kfajardo-agsx/kambal.git/internal/infrastructure/minio"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres"
+	"github.com/kfajardo-agsx/kambal.git/internal/infrastructure/postgres/repository"
+
+	// controllers
+	"github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest"
+	accountHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/account"
+	dropboxHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/dropbox"
+	fileHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/file"
+	storeHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/store"
+	storeProviderHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/store_provider"
+	tenantHandler "github.com/kfajardo-agsx/kambal.git/internal/entrypoint/api/rest/tenant"
 )
 
 // this is where we wire all dependencies to run the API
 type Keys struct {
+	// APIKey      string `json:"api-key"`
+	// S3AccessKey string `json:"s3-access-key"`
+	// S3SecretKey string `json:"s3-secret-key"`
+
 	DBUsername string `json:"db-username"`
 	DBPassword string `json:"db-password"`
-	APIKey     string `json:"api-key"`
 }
 
 func createRestAPI() *rest.API {
 	wire.Build(
+		// Allow configuration of credentials from file
 		ProvideKeysFromFile,
 		ProvideRestAPIConfig,
 
+		// database
 		ProvideDatasource,
 		ProvideGormDB,
-		repository.NewGormUserRepository,
 
-		// services
-		user.NewUserService,
+		ProvideFileContext,
 
-		handler.NewController,
+		// repository
+		// repository.NewTenantRepository,
+		// repository.NewStoreProviderRepository,
+		// repository.NewAccountRepository,
+		// repository.NewStoreRepository,
+		// repository.NewFileRepository,
+		repository.NewUserRepository,
+
+		// ProvideDropboxConfig,
+		// dropbox.NewService,
+		// minioApp.NewMinioStorage,
+
+		// service
+		userSvc.NewUserService,
+
+		// tenantSvc.NewTenantService,
+		// store_provider.NewStoreProviderService,
+		// account.NewAccountService,
+		// store.NewStoreService,
+		// fileSvc.NewFileService,
+		// dropboxSvc.NewDropboxService,
+		// minioSvc.NewMinioService,
+
+		// controller
+		userHandler.NewController,
+
+		// tenantHandler.NewController,
+		// storeProviderHandler.NewController,
+		// accountHandler.NewController,
+		// storeHandler.NewController,
+		// fileHandler.NewController,
+		// dropboxHandler.NewController,
 
 		mux.NewRouter,
 		rest.NewRestAPI,
@@ -59,6 +110,18 @@ func createMigration() *postgres.Migration {
 		postgres.NewMigration,
 	)
 	return &postgres.Migration{}
+}
+
+func ProvideDatasource(keys *Keys) *postgres.Datasource {
+	var datasource postgres.Datasource
+	err := viper.UnmarshalKey("datasource", &datasource)
+	if err != nil {
+		log.WithError(err).Error("unable to read Datasource config")
+		os.Exit(1)
+	}
+	datasource.Username = keys.DBUsername
+	datasource.Password = keys.DBPassword
+	return &datasource
 }
 
 func ProvideKeysFromFile() *Keys {
@@ -109,18 +172,6 @@ func ProvideRestAPIConfig(keys *Keys) *rest.Config {
 		log.SetLevel(logrus.DebugLevel)
 	}
 	return &config
-}
-
-func ProvideDatasource(keys *Keys) *postgres.Datasource {
-	var datasource postgres.Datasource
-	err := viper.UnmarshalKey("datasource", &datasource)
-	if err != nil {
-		log.WithError(err).Error("unable to read Datasource config")
-		os.Exit(1)
-	}
-	datasource.Username = keys.DBUsername
-	datasource.Password = keys.DBPassword
-	return &datasource
 }
 
 func ProvideGormDB(datasource *postgres.Datasource) *gorm.DB {
